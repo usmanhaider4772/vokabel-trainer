@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Vokabel Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12161F;
+    --surface:#1B2130;
+    --surface-2:#242B3D;
+    --paper:#F6F1E7;
+    --paper-back:#EFE9DC;
+    --ink:#20241F;
+    --ink-soft:#565f56;
+    --gold:#D4A93E;
+    --teal:#4C7A78;
+    --good:#5B8C5A;
+    --good-dark:#3f6a3f;
+    --again:#B85C4A;
+    --again-dark:#96473a;
+    --line:#2C3346;
+    --text-dim:#8A93A8;
+    --text-bright:#EDEFF5;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text-bright);
+    font-family:'IBM Plex Sans', sans-serif;
+    display:flex;
+    justify-content:center;
+    min-height:100vh;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .app{
+    width:100%;
+    max-width:480px;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    padding:0 18px;
+  }
+  header{
+    padding:22px 0 12px;
+  }
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:0.2px;
+    margin:0 0 14px;
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  h1 .dot{color:var(--gold);}
+  .tabs{
+    display:flex;
+    gap:6px;
+    background:var(--surface);
+    padding:4px;
+    border-radius:12px;
+    border:1px solid var(--line);
+  }
+  .tab{
+    flex:1;
+    background:transparent;
+    border:none;
+    color:var(--text-dim);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    padding:9px 4px;
+    border-radius:9px;
+    cursor:pointer;
+    transition:background .2s, color .2s;
+    line-height:1.25;
+  }
+  .tab.active{
+    background:var(--surface-2);
+    color:var(--text-bright);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  .direction-row{
+    display:flex;
+    justify-content:center;
+    margin-top:12px;
+  }
+  .direction-toggle{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    color:var(--text-bright);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    padding:8px 16px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:transform .12s ease, background .2s ease;
+  }
+  .direction-toggle:active{ transform:scale(.96); }
+  .direction-toggle .swap-icon{ color:var(--gold); font-size:14px; }
+
+  main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding-top:8px;
+  }
+
+  .progress-row{
+    width:100%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    color:var(--text-dim);
+    margin:14px 2px 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .progress-bar{
+    position:relative;
+    width:100%;
+    height:4px;
+    background:var(--surface);
+    border-radius:2px;
+    overflow:hidden;
+    margin-bottom:18px;
+  }
+  .progress-fill{
+    position:absolute; left:0; top:0; bottom:0;
+    width:0%;
+    background:var(--gold);
+    border-radius:2px;
+    transition:width .35s ease;
+  }
+
+  .card-stage{
+    position:relative;
+    width:100%;
+    max-width:340px;
+    aspect-ratio: 3 / 4;
+    perspective:1400px;
+    margin:6px auto 0;
+    touch-action: pan-y;
+  }
+  .stack-deco{
+    position:absolute;
+    inset:0;
+    border-radius:20px;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+  }
+  .stack-deco.d1{ transform:rotate(-4deg) translateY(6px); opacity:.55;}
+  .stack-deco.d2{ transform:rotate(3deg) translateY(4px); opacity:.35;}
+
+  .card{
+    position:absolute; inset:0;
+    cursor:pointer;
+    transform-style:preserve-3d;
+    transition:transform .5s cubic-bezier(.4,.2,.2,1);
+  }
+  .card.flipped{ transform:rotateY(180deg); }
+  .card.swipe-anim{ transition:transform .35s ease, opacity .35s ease; }
+
+  .face{
+    position:absolute; inset:0;
+    border-radius:20px;
+    backface-visibility:hidden;
+    display:flex;
+    flex-direction:column;
+    padding:26px 22px;
+    box-shadow:0 18px 40px -18px rgba(0,0,0,.55);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .face::-webkit-scrollbar{ width:0; height:0; }
+  .face.front{
+    background:var(--paper);
+    color:var(--ink);
+    border-top:5px solid var(--gold);
+  }
+  .face.back{
+    background:var(--paper-back);
+    color:var(--ink);
+    transform:rotateY(180deg);
+    border-top:5px solid var(--teal);
+  }
+  .holes{
+    position:absolute; top:10px; left:50%;
+    display:flex; gap:16px; transform:translateX(-50%);
+  }
+  .holes span{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--bg);
+  }
+  .eyebrow{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1.6px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-top:10px;
+  }
+  .face.front .eyebrow{ color:#a5842f; }
+  .face.back .eyebrow{ color:#3f6462; }
+  .term{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:clamp(26px, 8vw, 34px);
+    font-weight:700;
+    line-height:1.2;
+    margin-top:auto;
+    margin-bottom:auto;
+    width:100%;
+    max-width:100%;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+    hyphens:auto;
+  }
+  .term.term-md{ font-size:clamp(20px, 6.5vw, 26px); }
+  .term.term-sm{ font-size:clamp(16px, 5.5vw, 21px); }
+  .term.term-xs{ font-size:clamp(14px, 4.5vw, 18px); }
+  .term.term-xxs{ font-size:clamp(12px, 3.8vw, 15px); }
+  .plural-line, .note{
+    max-width:100%;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  }
+  .plural-line{
+    display:none;
+    align-items:baseline;
+    gap:7px;
+    margin-top:14px;
+    font-size:14px;
+    color:var(--ink);
+    font-weight:500;
+  }
+  .plural-line .tag{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--teal);
+    font-weight:700;
+    background:rgba(76,122,120,0.12);
+    padding:3px 7px;
+    border-radius:6px;
+  }
+  .note{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-top:10px;
+  }
+  .note.example-style{
+    font-style:italic;
+  }
+  .flip-hint{
+    position:absolute;
+    bottom:16px; left:0; right:0;
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    letter-spacing:.4px;
+  }
+
+  .hint-line{
+    text-align:center;
+    color:var(--text-dim);
+    font-size:12.5px;
+    margin:16px 0 8px;
+    min-height:16px;
+  }
+
+  .actions{
+    display:flex;
+    gap:12px;
+    width:100%;
+    max-width:340px;
+    margin:10px auto 0;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .actions.visible{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .actions button{
+    flex:1;
+    border:none;
+    border-radius:14px;
+    padding:12px 10px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    font-family:'IBM Plex Sans', sans-serif;
+    cursor:pointer;
+    color:#fff;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .actions button:active{ transform:scale(.96); }
+  .actions .btn-main{ font-weight:700; font-size:14.5px; }
+  .actions .btn-sub{ font-weight:500; font-size:11px; opacity:.9; letter-spacing:.1px; }
+  #againBtn{ background:linear-gradient(180deg, var(--again), var(--again-dark)); }
+  #gotItBtn{ background:linear-gradient(180deg, var(--good), var(--good-dark)); }
+
+  .round-complete{
+    max-width:340px;
+    margin:24px auto 0;
+    text-align:center;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:30px 22px;
+  }
+  .round-complete h2{
+    font-family:'Space Grotesk', sans-serif;
+    margin:0 0 8px;
+    font-size:20px;
+  }
+  .round-complete p{
+    color:var(--text-dim);
+    font-size:13.5px;
+    margin:0 0 20px;
+    line-height:1.5;
+  }
+  .round-complete button{
+    background:var(--gold);
+    color:#241d05;
+    border:none;
+    padding:13px 20px;
+    border-radius:12px;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    width:100%;
+  }
+
+  footer{
+    padding:10px 0 20px;
+    text-align:center;
+    color:var(--text-dim);
+    font-size:11.5px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .card, .progress-fill{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 class="app-logo">
+  <!-- You can replace this <svg> block with: <img src="your-logo.png" alt="Logo"> -->
+  <svg class="icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="4 7 12 19 20 7"></polyline>
+  </svg>
+    Vokabel Trainer</h1>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-type="word_meaning">Wort–Bedeutung</button>
+      <button class="tab" data-type="verb_perfekt">Verb–Perfekt</button>
+      <button class="tab" data-type="verb_praeteritum">Verb–Präteritum</button>
+    </nav>
+    <div class="direction-row">
+      <button class="direction-toggle" id="directionToggle">
+        <span class="swap-icon">⇄</span>
+        <span id="directionLabel">DE → EN</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="progress-row">
+      <span id="progressLeft">Karte 1 / 1</span>
+      <span id="progressRight">Gekonnt 0</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div id="playArea">
+      <div class="card-stage" id="cardStage">
+        <div class="stack-deco d1"></div>
+        <div class="stack-deco d2"></div>
+        <div class="card" id="card">
+          <div class="face front">
+            <div class="holes"><span></span><span></span></div>
+            <div class="eyebrow" id="frontLabel">Word</div>
+            <div class="term" id="frontTerm">—</div>
+            <div class="flip-hint">Tippen zum Umdrehen</div>
+          </div>
+          <div class="face back">
+            <div class="holes"><span></span><span></span></div>
+            <div class="eyebrow" id="backLabel">Meaning</div>
+            <div class="term" id="backTerm">—</div>
+            <div class="plural-line" id="pluralLine"></div>
+            <div class="note" id="backNote"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint-line" id="hintLine">Lade Vokabeln…</div>
+
+      <div class="actions" id="actions">
+        <button id="againBtn">
+          <span class="btn-main">↺ Nochmal</span>
+          <span class="btn-sub">kommt gleich wieder</span>
+        </button>
+        <button id="gotItBtn">
+          <span class="btn-main">✓ Kann ich</span>
+          <span class="btn-sub">gilt als gelernt</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="round-complete" id="roundComplete" hidden>
+      <h2 id="roundCompleteTitle">Runde geschafft 🎉</h2>
+      <p id="roundSummary"></p>
+      <button id="restartBtn">Neue Runde starten</button>
+    </div>
+  </main>
+
+  <footer id="deckFooter">Lade Vokabeln…</footer>
+</div>
+
+<script>
+(function(){
+  // ---- Deck configuration ----
+  // Vocabulary is no longer hardcoded here. Each type reads its cards straight
+  // from the matching CSV file sitting next to this HTML file. Just keep
+  // editing/growing those CSVs — reloading the page picks up new rows
+  // automatically, no code changes needed.
+  const TYPE_CONFIG = {
+    word_meaning: {
+      label: 'Wort–Bedeutung',
+      labels: ['German','English'],
+      forwardLabel: 'DE → EN',
+      reverseLabel: 'EN → DE',
+      primaryField: 'word',
+      secondaryField: 'meaning',
+      pluralField: 'plural',
+      exampleField: 'example',
+      csvFile: 'word_meaning.csv',
+      requiredFields: ['word','meaning'],
+      cards: [],
+      loadError: false
+    },
+    verb_perfekt: {
+      label: 'Verb–Perfekt',
+      labels: ['Infinitiv','Perfekt'],
+      forwardLabel: 'Infinitiv → Perfekt',
+      reverseLabel: 'Perfekt → Infinitiv',
+      primaryField: 'verb',
+      secondaryField: 'perfekt',
+      noteField: 'meaning',
+      csvFile: 'verb_perfekt.csv',
+      requiredFields: ['verb','perfekt'],
+      cards: [],
+      loadError: false
+    },
+    verb_praeteritum: {
+      label: 'Verb–Präteritum',
+      labels: ['Infinitiv','Präteritum'],
+      forwardLabel: 'Infinitiv → Präteritum',
+      reverseLabel: 'Präteritum → Infinitiv',
+      primaryField: 'verb',
+      secondaryField: 'praeteritum',
+      noteField: 'meaning',
+      csvFile: 'verb_praeteritum.csv',
+      requiredFields: ['verb','praeteritum'],
+      cards: [],
+      loadError: false
+    }
+  };
+
+  let currentType = 'word_meaning';
+  let reverseByType = {word_meaning:false, verb_perfekt:false, verb_praeteritum:false};
+  let queue = [];
+  let currentCard = null;
+  let flipped = false;
+  let initialTotal = 0;
+  let knownCount = 0;
+  let isLoading = true;
+
+  const els = {
+    tabs: document.getElementById('tabs'),
+    directionToggle: document.getElementById('directionToggle'),
+    directionLabel: document.getElementById('directionLabel'),
+    cardStage: document.getElementById('cardStage'),
+    card: document.getElementById('card'),
+    frontLabel: document.getElementById('frontLabel'),
+    frontTerm: document.getElementById('frontTerm'),
+    backLabel: document.getElementById('backLabel'),
+    backTerm: document.getElementById('backTerm'),
+    pluralLine: document.getElementById('pluralLine'),
+    backNote: document.getElementById('backNote'),
+    actions: document.getElementById('actions'),
+    againBtn: document.getElementById('againBtn'),
+    gotItBtn: document.getElementById('gotItBtn'),
+    hintLine: document.getElementById('hintLine'),
+    progressLeft: document.getElementById('progressLeft'),
+    progressRight: document.getElementById('progressRight'),
+    progressFill: document.getElementById('progressFill'),
+    playArea: document.getElementById('playArea'),
+    roundComplete: document.getElementById('roundComplete'),
+    roundCompleteTitle: document.getElementById('roundCompleteTitle'),
+    roundSummary: document.getElementById('roundSummary'),
+    restartBtn: document.getElementById('restartBtn'),
+    deckFooter: document.getElementById('deckFooter')
+  };
+
+  // ---- CSV parsing (quote-aware, comma-safe) ----
+  function parseCsvLine(line){
+    const result = [];
+    let cur = '';
+    let inQuotes = false;
+    for(let i=0;i<line.length;i++){
+      const ch = line[i];
+      if(inQuotes){
+        if(ch === '"'){
+          if(line[i+1] === '"'){ cur += '"'; i++; }
+          else { inQuotes = false; }
+        } else { cur += ch; }
+      } else {
+        if(ch === '"'){ inQuotes = true; }
+        else if(ch === ','){ result.push(cur); cur=''; }
+        else { cur += ch; }
+      }
+    }
+    result.push(cur);
+    return result.map(function(s){ return s.trim(); });
+  }
+
+  function parseCsvText(text){
+    const lines = text.split(/\r?\n/).filter(function(l){ return l.trim().length > 0; });
+    if(lines.length === 0) return [];
+    const header = parseCsvLine(lines[0]).map(function(h){ return h.trim().toLowerCase(); });
+    const rows = [];
+    for(let i=1;i<lines.length;i++){
+      const fields = parseCsvLine(lines[i]);
+      if(fields.every(function(f){ return f === ''; })) continue;
+      const obj = {};
+      header.forEach(function(h, idx){
+        obj[h] = fields[idx] !== undefined ? fields[idx].trim() : '';
+      });
+      rows.push(obj);
+    }
+    return rows;
+  }
+
+  async function loadCsvDeck(type){
+    const cfg = TYPE_CONFIG[type];
+    try{
+      const res = await fetch(cfg.csvFile, {cache:'no-store'});
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const rows = parseCsvText(text);
+      const valid = rows.filter(function(r){
+        return cfg.requiredFields.every(function(f){ return r[f] && r[f].length; });
+      });
+      cfg.cards = valid;
+      cfg.loadError = valid.length === 0;
+    } catch(err){
+      console.error('Could not load', cfg.csvFile, err);
+      cfg.cards = [];
+      cfg.loadError = true;
+    }
+  }
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function fieldNames(type){
+    const cfg = TYPE_CONFIG[type];
+    const rev = reverseByType[type];
+    return rev
+      ? {front: cfg.secondaryField, back: cfg.primaryField}
+      : {front: cfg.primaryField, back: cfg.secondaryField};
+  }
+
+  function updateDirectionLabel(){
+    const cfg = TYPE_CONFIG[currentType];
+    els.directionLabel.textContent = reverseByType[currentType] ? cfg.reverseLabel : cfg.forwardLabel;
+  }
+
+  function sizeTerm(el, text){
+    el.classList.remove('term-md','term-sm','term-xs','term-xxs');
+    const len = (text || '').length;
+    if(len > 34) el.classList.add('term-xxs');
+    else if(len > 24) el.classList.add('term-xs');
+    else if(len > 16) el.classList.add('term-sm');
+    else if(len > 10) el.classList.add('term-md');
+  }
+
+  function showLoadError(cfg){
+    els.playArea.hidden = true;
+    els.roundComplete.hidden = false;
+    els.roundCompleteTitle.textContent = 'Vokabeln fehlen';
+    els.roundSummary.textContent = 'Konnte "' + cfg.csvFile + '" nicht laden oder die Datei ist leer. ' +
+      'Stelle sicher, dass sie im selben Ordner wie index.html liegt und die Seite über einen Webserver ' +
+      '(z. B. GitHub Pages) läuft — nicht per Doppelklick als Datei geöffnet.';
+    els.restartBtn.textContent = 'Erneut versuchen';
+    els.deckFooter.textContent = '0 Karten in diesem Deck';
+  }
+
+  function startRound(){
+    const cfg = TYPE_CONFIG[currentType];
+    const deck = cfg.cards;
+    if(!deck || deck.length === 0){
+      showLoadError(cfg);
+      return;
+    }
+    els.restartBtn.textContent = 'Neue Runde starten';
+    els.roundCompleteTitle.textContent = 'Runde geschafft 🎉';
+    queue = shuffle(deck);
+    initialTotal = queue.length;
+    knownCount = 0;
+    els.deckFooter.textContent = initialTotal + (initialTotal === 1 ? ' Karte in diesem Deck' : ' Karten in diesem Deck');
+    els.roundComplete.hidden = true;
+    els.playArea.hidden = false;
+    showNext();
+  }
+
+  function showNext(){
+    if(queue.length === 0){
+      finishRound();
+      return;
+    }
+    currentCard = queue.shift();
+    flipped = false;
+    els.card.classList.remove('flipped');
+    els.actions.classList.remove('visible');
+    renderCard();
+    updateProgress();
+    els.hintLine.textContent = 'Tippen oder Leertaste zum Umdrehen';
+  }
+
+  function renderCard(){
+    const cfg = TYPE_CONFIG[currentType];
+    const rev = reverseByType[currentType];
+    const f = fieldNames(currentType);
+    els.frontLabel.textContent = rev ? cfg.labels[1] : cfg.labels[0];
+    els.backLabel.textContent = rev ? cfg.labels[0] : cfg.labels[1];
+    const frontText = currentCard[f.front] || '—';
+    const backText = currentCard[f.back] || '—';
+    els.frontTerm.textContent = frontText;
+    els.backTerm.textContent = backText;
+    sizeTerm(els.frontTerm, frontText);
+    sizeTerm(els.backTerm, backText);
+
+    if(cfg.pluralField){
+      const pluralVal = currentCard[cfg.pluralField];
+      if(pluralVal){
+        els.pluralLine.innerHTML = '<span class="tag">Plural</span> ' + pluralVal;
+        els.pluralLine.style.display = 'flex';
+      } else {
+        els.pluralLine.style.display = 'none';
+      }
+      const exampleVal = cfg.exampleField ? currentCard[cfg.exampleField] : '';
+      els.backNote.textContent = exampleVal || '';
+      els.backNote.style.display = exampleVal ? 'block' : 'none';
+      els.backNote.classList.add('example-style');
+    } else {
+      els.pluralLine.style.display = 'none';
+      const noteVal = cfg.noteField ? currentCard[cfg.noteField] : '';
+      els.backNote.textContent = noteVal || '';
+      els.backNote.style.display = noteVal ? 'block' : 'none';
+      els.backNote.classList.remove('example-style');
+    }
+  }
+
+  function updateProgress(){
+    const remaining = queue.length + 1;
+    const seenSoFar = initialTotal - remaining + 1;
+    els.progressLeft.textContent = 'Karte ' + Math.max(seenSoFar,1) + ' / ' + initialTotal;
+    els.progressRight.textContent = 'Gekonnt ' + knownCount;
+    const pct = initialTotal ? (knownCount / initialTotal) * 100 : 0;
+    els.progressFill.style.width = pct + '%';
+  }
+
+  function flipCard(){
+    if(!currentCard) return;
+    flipped = !flipped;
+    els.card.classList.toggle('flipped', flipped);
+    els.actions.classList.toggle('visible', flipped);
+    els.hintLine.textContent = flipped ? 'Wusstest du die Antwort?' : 'Tippen oder Leertaste zum Umdrehen';
+  }
+
+  function handleAgain(){
+    if(!flipped) return;
+    queue.push(currentCard);
+    animateAndNext(-1);
+  }
+  function handleGotIt(){
+    if(!flipped) return;
+    knownCount++;
+    animateAndNext(1);
+  }
+
+  function animateAndNext(direction){
+    els.card.classList.add('swipe-anim');
+    const flyX = direction * 420;
+    els.card.style.transform = 'translateX(' + flyX + 'px) rotate(' + (direction*10) + 'deg)';
+    els.card.style.opacity = '0';
+    setTimeout(function(){
+      els.card.classList.remove('swipe-anim');
+      els.card.style.transform = '';
+      els.card.style.opacity = '1';
+      showNext();
+    }, 260);
+  }
+
+  function finishRound(){
+    els.playArea.hidden = true;
+    els.roundComplete.hidden = false;
+    els.roundCompleteTitle.textContent = 'Runde geschafft 🎉';
+    els.restartBtn.textContent = 'Neue Runde starten';
+    const pct = initialTotal ? Math.round((knownCount/initialTotal)*100) : 0;
+    els.roundSummary.textContent = 'Du kanntest ' + knownCount + ' von ' + initialTotal + ' Karten (' + pct + '%). Starte eine neue Runde, um weiterzuüben.';
+  }
+
+  // swipe gesture
+  let touchStartX = null, touchStartY = null;
+  els.cardStage.addEventListener('touchstart', function(e){
+    const t = e.changedTouches[0];
+    touchStartX = t.clientX; touchStartY = t.clientY;
+  }, {passive:true});
+  els.cardStage.addEventListener('touchend', function(e){
+    if(touchStartX === null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+    touchStartX = null;
+    if(!flipped) return;
+    if(Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)){
+      if(dx > 0) handleGotIt(); else handleAgain();
+    }
+  }, {passive:true});
+
+  els.card.addEventListener('click', flipCard);
+  els.againBtn.addEventListener('click', handleAgain);
+  els.gotItBtn.addEventListener('click', handleGotIt);
+
+  els.restartBtn.addEventListener('click', async function(){
+    const cfg = TYPE_CONFIG[currentType];
+    if(!cfg.cards || cfg.cards.length === 0){
+      els.restartBtn.textContent = 'Lade…';
+      await loadCsvDeck(currentType);
+    }
+    startRound();
+  });
+
+  els.directionToggle.addEventListener('click', function(){
+    if(isLoading) return;
+    reverseByType[currentType] = !reverseByType[currentType];
+    updateDirectionLabel();
+    startRound();
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.code === 'Space' || e.code === 'Enter'){
+      e.preventDefault();
+      if(!flipped) flipCard();
+    } else if(e.code === 'ArrowLeft'){
+      handleAgain();
+    } else if(e.code === 'ArrowRight'){
+      handleGotIt();
+    }
+  });
+
+  // tabs
+  els.tabs.addEventListener('click', function(e){
+    if(isLoading) return;
+    const btn = e.target.closest('.tab');
+    if(!btn) return;
+    const type = btn.dataset.type;
+    if(type === currentType) return;
+    document.querySelectorAll('.tab').forEach(function(b){ b.classList.toggle('active', b===btn); });
+    currentType = type;
+    updateDirectionLabel();
+    startRound();
+  });
+
+  // ---- init: fetch all three CSVs, then start ----
+  (async function init(){
+    els.deckFooter.textContent = 'Lade Vokabeln…';
+    els.hintLine.textContent = 'Lade Vokabeln…';
+    await Promise.all(Object.keys(TYPE_CONFIG).map(loadCsvDeck));
+    isLoading = false;
+    updateDirectionLabel();
+    startRound();
+  })();
+})();
+</script>
+</body>
+</html>
